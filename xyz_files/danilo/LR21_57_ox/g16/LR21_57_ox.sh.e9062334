@@ -1,0 +1,5 @@
+/bin/rm: cannot remove '/local/gaus/machadol/LR21_57_ox': No such file or directory
+tail: cannot open 'LR21_57_ox.log' for reading: No such file or directory
+tail: 'LR21_57_ox.log' has appeared;  following new file
+kill: sending signal to 7589 failed: No such process
+tail: 'LR21_57_ox.log' has become inaccessible: No such file or directory

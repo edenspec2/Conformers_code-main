@@ -116,7 +116,7 @@ def dataframe_to_xyz(dataframe, output_name, comment_line=''):
         xyz_file.write("{}\n{}\n".format(number_of_atoms, comment_line))
         for atom_np_array in atoms_np_array:
             try:
-                xyz_file.write("{:1} {:11.20} {:11.20} {:11.20}".format(*atom_np_array))
+                xyz_file.write("{:1} {:11.20} {:11.20} {:11.20}\n".format(*atom_np_array))
             except:
                 xyz_file.write("{:1}".format(*atom_np_array))
 
@@ -183,4 +183,17 @@ def move_files_directory(file_type):#need edit
         os.replace(os.path.abspath(file_name),new_path)
     return
 ## write help functions for mol2 to dfs
+def string_to_int_list(string,splitter=' '):
+    string=string.split(splitter)
+    return [int(value) for value in string]
+
+def split_to_pairs(string,splitter=' '):
+    list_a=string_to_int_list(string)
+    chunck=(len(list_a)/2)
+    splited=np.array_split(list_a,chunck)
+    return [value.tolist() for value in splited]
+
+def split_for_angles(string):
+    string_list=string.split('  ')
+    return [string_to_int_list(value,' ') for value in string_list]
 

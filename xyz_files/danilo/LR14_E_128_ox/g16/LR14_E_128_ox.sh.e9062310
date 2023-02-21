@@ -1,0 +1,5 @@
+/bin/rm: cannot remove '/local/gaus/machadol/LR14_E_128_ox': No such file or directory
+tail: cannot open 'LR14_E_128_ox.log' for reading: No such file or directory
+tail: 'LR14_E_128_ox.log' has appeared;  following new file
+kill: sending signal to 7536 failed: No such process
+tail: 'LR14_E_128_ox.log' has become inaccessible: No such file or directory

@@ -3,10 +3,11 @@ from openbabel import openbabel as ob
 from openbabel import pybel
 import pandas as pd
 from biopandas.mol2 import PandasMol2
-
+import sys
 sys.path.append(r'C:\Users\edens\Documents\GitHub\Conformers_code-main\M2_data_extractor')
 from  data_extractor import *
 sys.path.append(r'C:\Users\edens\Documents\GitHub\Conformers_code-main\utils')
+from help_functions import *
 import tab_data
 
 
@@ -231,10 +232,15 @@ def calc_dipole_charges(coordinates_array, charges_array, sub_atoms=None):  ##ad
     return dip_df['total_dipole']
 
 
+#TODO:fix this horrible function
 def get_sterimol(coordinates_df, bonds_df, atom_type, base_atoms, radii='bondi'):
     coordinates_array = np.array(coordinates_df[['x', 'y', 'z']].astype(float))
     bonds_direction = direction_atoms_for_sterimol(bonds_df, base_atoms)
-    transformed_coordinates = calc_coordinates_transformation(coordinates_array, base_atoms)
+    try:
+        transformed_coordinates = calc_coordinates_transformation(coordinates_array, base_atoms)
+    except numpy.linalg.LinAlgError:
+        return pd.DataFrame([float('NaN'), float('NaN'), float('NaN'), float('NaN')], index=['B1','loc_B1', 'B5', 'L']).T
+
     connected_from_direction = get_molecule_connections(bonds_df, bonds_direction[0], bonds_direction[1])
     ## creating df of atoms and bonds
     bonded_atoms_df = get_specific_bonded_atoms_df(bonds_df, connected_from_direction, coordinates_df)
@@ -246,20 +252,30 @@ def get_sterimol(coordinates_df, bonds_df, atom_type, base_atoms, radii='bondi')
     try:
         b1s, b1s_loc = get_b1s_list(extended_df)
     except ValueError:
-        return pd.DataFrame([float('NaN'), float('NaN'), float('NaN')], index=['B1', 'B5', 'L']).T
+        return pd.DataFrame([float('NaN'), float('NaN'), float('NaN'), float('NaN')], index=['B1','loc_B1', 'B5', 'L']).T
     B1 = min(b1s[b1s >= 0])
-    # loc_B1=max(b1s_loc[np.where(b1s[b1s>=0]==min(b1s[b1s>=0]))])
+    loc_B1=max(b1s_loc[np.where(b1s[b1s>=0]==min(b1s[b1s>=0]))])
     B5 = max(extended_df['B5'].values)
     L = max(extended_df['L'].values + 0.4)
     # try:
     #     loc_B5=min(extended_df['y'].iloc[np.where(extended_df['B5'].values==B5)[0][0]])
     # except TypeError:
     #     loc_B5=min(extended_df['y'].iloc[np.where(extended_df['B5'].values==B5)])
-    df = pd.DataFrame([B1, B5, L], index=['B1', 'B5', 'L'])
+    df = pd.DataFrame([B1, loc_B1, B5, L], index=['B1','loc_B1', 'B5', 'L'])
     return df.T
+
+def analyze_conformers(path, conformers_filename, molecule_format='xyz'):
+    os.chdir(path)
+    sterimol_atoms=input('enter the atoms for sterimol calculation:')
+    for directory in os.listdir(path):
+        os.chdir(path + '/' + directory)
+        conformers = Conformers(conformers_filename, molecule_format,sterimol_atoms)
+        conformers.save_min_max_conformers()
+        os.chdir('../')
+
 class Conformers():
 
-    def __init__(self, conformers_filename, molecule_format='xyz'):
+    def __init__(self, conformers_filename, molecule_format='xyz',sterimol_atoms=None):
         # self.path=os.path.abspath(conformers_filename.split('.')[0])
         self.conformers_filename = conformers_filename
         # os.chdir(self.path)
@@ -274,7 +290,10 @@ class Conformers():
         self.coordinates_df_list = coordinates_dfs_for_analyze(self.mol2_df_list)
         self.conformers_dict = array_list_to_dict(self.coordinates_array_list)
         self.dipole_list = get_dipole_list(self.coordinates_array_list, self.charge_list)
-        self.sterimol_list = get_sterimol_list(self.coordinates_df_list, self.bonds_list, self.atom_type_list, [2,1])
+        if sterimol_atoms is not None:
+            self.sterimol_list = get_sterimol_list(self.coordinates_df_list, self.bonds_list, self.atom_type_list, string_to_int_list(sterimol_atoms))
+        else:
+            self.sterimol_list = get_sterimol_list(self.coordinates_df_list, self.bonds_list, self.atom_type_list, [2,1])
         self.energy_list = get_pbmol_energy_list(self.pbmol_list)
         self.conformers_summary_df =self.get_conformers_summary_df()
 
@@ -292,8 +311,27 @@ class Conformers():
              self.sterimol_list], axis=1)  # ,self.conformers_energy_list
         return summary_df
 
+    def get_parameter_index(self, parameter, index_num=None, ascending=True):
 
+        if index_num == None:
+            ordered_df = self.conformers_summary_df.sort_values(parameter, axis=0, ascending=ascending)
+        else:
+            ordered_df = self.conformers_summary_df.sort_values(parameter, axis=0, ascending=ascending).head(index_num)
+        return ordered_df.index.values.tolist()
 
+    def save_min_max_conformers(self):
+            list=[]
+            os.mkdir('sorted_xyz')
+            os.chdir('sorted_xyz')
+            for parameter in self.conformers_summary_df.columns[1:]:
+                max_index = np.where(self.conformers_summary_df[parameter] == self.conformers_summary_df[parameter].max())[0][0]
+                min_index = np.where(self.conformers_summary_df[parameter] == self.conformers_summary_df[parameter].min())[0][0]
+                min_conformer = self.coordinates_df_list[min_index]
+                max_conformer = self.coordinates_df_list[max_index]
+                dataframe_to_xyz(min_conformer, 'min_{}.xyz'.format(parameter))
+                dataframe_to_xyz(max_conformer, 'max_{}.xyz'.format(parameter))
+            os.chdir('../')
+            return
 
 
 class ConformersFieldAnalayzer():
@@ -305,6 +343,7 @@ class ConformersFieldAnalayzer():
 
     def get_rmsd_dict(self, parameter='energy', ref_idx=0):
         order_mask = self.conformers_class.get_parameter_index(parameter)
+
         ordered_pbmol_list = np.array(self.conformers_class.pbmol_list)[order_mask]
         rmsd_df = get_rmsd_df(ordered_pbmol_list, ref_idx=0)
         rmsd_mean = rmsd_df.mean()
@@ -313,13 +352,7 @@ class ConformersFieldAnalayzer():
         return rsmd_dict
 
 
-    def get_parameter_index(self, parameter, index_num=None, ascending=True):
 
-        if index_num == None:
-            ordered_df = self.conformers_summary_df.sort_values(parameter, axis=0, ascending=ascending)
-        else:
-            ordered_df = self.conformers_summary_df.sort_values(parameter, axis=0, ascending=ascending).head(index_num)
-        return ordered_df.index.values.tolist()
 
 class ConformersCompare():
 
@@ -354,11 +387,13 @@ if __name__ == '__main__':
     rdkit_conformers = Conformers('rdkitconformers_gauss_compare.sdf', 'sdf')
     ob_conformers = Conformers('obconformers_gauss_compare.xyz', 'xyz')
     # crest_conformers=Conformers('crest_conformers.xyz')
-    conformers_field_1 = ConformersFieldAnalayzer(rdkit_conformers)
+#     conformers_field_1 = ConformersFieldAnalayzer(rdkit_conformers)
+
+    analyze_conformers(r'C:\Users\edens\Documents\GitHub\Conformers_code-main\xyz_files\danilo', 'crest_conformers.xyz', 'xyz')
     # conformers_field_2 = ConformersFieldAnalayzer(ob_conformers)
 
     # compare=ConformersCompare(conformers_field_1, conformers_field_2)
 
-#     data=tab_data.TabDataAnalyzer(parser=tab_data.set_tab_parser(),origin_df=rdkit_conformers.coordinates_df_list[1],xyz_filename='conformer',get_plot=True)
-#     overlay_analyzer=tab_data.OverlayAnalyzer(parser=tab_data.set_overlay_parser(),xyz_filenames=['0','1'] ,xyz_dfs=[rdkit_conformers.coordinates_df_list[0], rdkit_conformers.coordinates_df_list[1],rdkit_conformers.coordinates_df_list[15]], fit_mode='all',)
-# #                                         atoms=['30', '20', '16', '0', '24', '8', '5', '33'],
+    data=tab_data.TabDataAnalyzer(parser=tab_data.set_tab_parser(),origin_df=rdkit_conformers.coordinates_df_list[1],xyz_filename='conformer',get_plot=True)
+    overlay_analyzer=tab_data.OverlayAnalyzer(parser=tab_data.set_overlay_parser(),xyz_filenames=['0','1'] ,xyz_dfs=[rdkit_conformers.coordinates_df_list[0], rdkit_conformers.coordinates_df_list[1],rdkit_conformers.coordinates_df_list[15]], fit_mode='all',)
+#                                         atoms=['30', '20', '16', '0', '24', '8', '5', '33'],

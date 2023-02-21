@@ -1,0 +1,3 @@
+/bin/rm: cannot remove '/local/gaus/machadol/LR19b_449_ox': No such file or directory
+tail: 'LR19b_449_ox.log' has become inaccessible: No such file or directory
+kill: sending signal to 5726 failed: No such process

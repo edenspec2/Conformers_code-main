@@ -1,0 +1,5 @@
+/bin/rm: cannot remove '/local/gaus/machadol/LR19a_655_ox': No such file or directory
+tail: cannot open 'LR19a_655_ox.log' for reading: No such file or directory
+tail: 'LR19a_655_ox.log' has appeared;  following new file
+kill: sending signal to 6433 failed: No such process
+tail: 'LR19a_655_ox.log' has become inaccessible: No such file or directory

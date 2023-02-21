@@ -661,12 +661,14 @@ def filter_atoms_for_sterimol(bonded_atoms_df,coordinates_df):
     a function that filter out NOF bonds and H bonds and returns
      a dataframe of the molecule coordinates without them.
     """
+
     bonds_array=adjust_indices((bonded_atoms_df[['index_1','index_2']]).astype(int))
-    bonded_atoms_df=remove_nof_bonds(bonded_atoms_df, bonds_array, coordinates_df)
     bonded_atoms_df=remove_atom_bonds(bonded_atoms_df) ## a bit redundent becuse remove_atom_bonds doesnt leave nof bonds anyways
+    bonded_atoms_df=remove_nof_bonds(bonded_atoms_df, bonds_array, coordinates_df)
     allowed_bonds_indices= pd.concat([bonded_atoms_df['index_1'],bonded_atoms_df['index_2']],axis=1).reset_index(drop=True)
     atom_filter=adjust_indices(np.unique([atom for sublist in allowed_bonds_indices.values.tolist() for atom in sublist]))
-    edited_coordinates_df=coordinates_df.iloc[atom_filter].reset_index(drop=True)
+
+    edited_coordinates_df=coordinates_df.loc[atom_filter].reset_index(drop=True)
     return edited_coordinates_df
 
 

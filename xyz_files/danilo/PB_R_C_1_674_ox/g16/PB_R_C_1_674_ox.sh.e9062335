@@ -1,0 +1,5 @@
+/bin/rm: cannot remove '/local/gaus/machadol/PB_R_C_1_674_ox': No such file or directory
+tail: cannot open 'PB_R_C_1_674_ox.log' for reading: No such file or directory
+tail: 'PB_R_C_1_674_ox.log' has appeared;  following new file
+kill: sending signal to 6841 failed: No such process
+tail: 'PB_R_C_1_674_ox.log' has become inaccessible: No such file or directory
